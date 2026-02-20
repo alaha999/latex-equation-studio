@@ -2,341 +2,879 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>LaTeX Equation Studio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<script>
-window.MathJax = {
-  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
-  svg: { fontCache: 'none' }
-};
-</script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
+<title>LaTeX Equation Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
-:root {
-  --primary: #002b5c;
-  --bg: #f6f8fb;
-  --panel: #ffffff;
-  --border: #d4d9e2;
-  --text: #111;
-}
+  :root {
+    --bg: #0e0e11;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: #2a2a35;
+    --accent: #c8a96e;
+    --accent2: #7c6fcd;
+    --text: #f0eee8;
+    --text-muted: #ffffff;
+    --text-dim: #6e6c7a;
+    --green: #6fcf8a;
+    --red: #e06c75;
+    --radius: 8px;
+  }
 
-body {
-  margin: 0;
-  font-family: "Georgia", "Times New Roman", serif;
-  background: var(--bg);
-  color: var(--text);
-}
+  /* ── Light mode overrides ── */
+  body.light {
+    --bg: #f4f2ee;
+    --surface: #ffffff;
+    --surface2: #ede9e0;
+    --border: #d5d0c8;
+    --text: #1a1a1a;
+    --text-muted: #666;
+    --text-dim: #aaa;
+  }
 
-/* HEADER */
-.header {
-  background: var(--primary);
-  color: white;
-  text-align: center;
-  padding: 14px;
-  font-size: 20px;
-  letter-spacing: 0.5px;
-}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* MAIN LAYOUT */
-.container {
-  display: grid;
-  grid-template-columns: 0px 5px 40% 5px 1fr;
-  height: calc(100vh - 58px);
-}
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.2s, color 0.2s;
+  }
 
-/* HISTORY SIDEBAR */
-.history {
-  background: var(--panel);
-  border-right: 1px solid var(--border);
-  padding: 15px;
-  overflow-y: auto;
-}
+  /* HEADER */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 20px; border-bottom: 1px solid var(--border);
+    background: var(--surface); flex-shrink: 0; gap: 10px; flex-wrap: wrap;
+  }
+  .brand { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--accent); white-space: nowrap; }
+  .brand em { color: var(--text-muted); font-size: 0.72rem; font-family: 'DM Sans', sans-serif; margin-left: 8px; font-style: normal; }
+  .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
-.history h3 {
-  margin-top: 0;
-  font-weight: normal;
-  font-size: 16px;
-}
+  .btn {
+    font-family: 'DM Sans', sans-serif; font-size: 0.76rem; font-weight: 500;
+    padding: 6px 13px; border-radius: var(--radius); border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); cursor: pointer;
+    transition: all 0.13s; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600; }
+  .btn.primary:hover { opacity: 0.85; color: #111; }
+  .btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+  .btn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 
-.history-item {
-  font-size: 14px;
-  padding: 6px 4px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-}
+  /* Theme toggle */
+  .theme-toggle {
+    background: none; border: 1px solid var(--border); border-radius: 20px;
+    padding: 5px 10px; cursor: pointer; display: flex; align-items: center; gap: 6px;
+    font-size: 0.72rem; color: var(--text-muted); transition: all 0.13s;
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
-/* EDITOR */
-.editor {
-  background: var(--panel);
-  padding: 20px;
-  display: flex;
-}
+  /* APP */
+  .app { flex: 1; display: flex; overflow: hidden; }
 
-textarea {
-  flex: 1;
-  resize: none;
-  border: 1px solid var(--border);
-  padding: 15px;
-  font-family: monospace;
-  font-size: 16px;
-  border-radius: 4px;
-}
+  /* SIDEBAR */
+  .sidebar {
+    width: 220px; flex-shrink: 0; background: var(--surface);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+    overflow: hidden; transition: width 0.22s cubic-bezier(.4,0,.2,1), opacity 0.18s;
+  }
+  .sidebar.collapsed { width: 0; opacity: 0; pointer-events: none; }
+  .sidebar-top {
+    padding: 11px 14px 9px; font-size: 0.67rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .icon-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 2px; display: flex; align-items: center; transition: color 0.13s; }
+  .icon-btn:hover { color: var(--red); }
+  .history-list { flex: 1; overflow-y: auto; padding: 6px; }
+  .history-list::-webkit-scrollbar { width: 3px; }
+  .history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .h-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; margin-bottom: 3px; transition: all 0.12s; }
+  .h-item:hover { background: var(--surface2); border-color: var(--border); }
+  .h-latex { font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .h-time { font-size: 0.58rem; color: var(--text-dim); margin-top: 3px; }
+  .h-empty { padding: 20px 12px; text-align: center; font-size: 0.72rem; color: var(--text-dim); }
 
-/* VIEWER */
-.viewer {
-  display: flex;
-  flex-direction: column;
-}
+  /* MAIN */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+  .split { flex: 1; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; }
+  @media (max-width: 680px) {
+    .split { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+    .sidebar { position: absolute; z-index: 20; height: calc(100% - 44px); }
+  }
 
-.toolbar {
-  background: var(--panel);
-  padding: 10px 15px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+  /* EDITOR */
+  .editor-panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; }
+  .panel-bar {
+    display: flex; align-items: center; gap: 8px; padding: 7px 14px;
+    border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0;
+    font-size: 0.67rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-muted);
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .dot.purple { background: var(--accent2); }
+  /* ── Symbol palette ── */
+  .palette { display: flex; flex-direction: column; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
 
-.toolbar-left {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
+  .palette-tabs {
+    display: flex; overflow-x: auto; gap: 0;
+    border-bottom: 1px solid var(--border);
+    scrollbar-width: none;
+  }
+  .palette-tabs::-webkit-scrollbar { display: none; }
 
-button {
-  background: var(--primary);
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  cursor: pointer;
-  border-radius: 4px;
-  font-family: inherit;
-}
+  .ptab {
+    font-family: 'DM Sans', sans-serif; font-size: 0.63rem; font-weight: 500;
+    padding: 5px 10px; border: none; background: transparent;
+    color: var(--text-muted); cursor: pointer; white-space: nowrap;
+    border-bottom: 2px solid transparent; transition: all 0.13s;
+    flex-shrink: 0;
+  }
+  .ptab:hover { color: var(--text); }
+  .ptab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-input {
-  width: 70px;
-  padding: 4px;
-}
+  .palette-body {
+    display: flex; flex-wrap: wrap; gap: 3px;
+    padding: 6px 10px; min-height: 38px; max-height: 80px;
+    overflow-y: auto;
+  }
+  .palette-body::-webkit-scrollbar { width: 3px; }
+  .palette-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-/* PREVIEW */
-.preview-area {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 40px;
-}
+  .snip {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.68rem;
+    padding: 2px 7px; border-radius: 4px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-muted); cursor: pointer;
+    transition: all 0.11s; display: inline-flex; align-items: center; gap: 4px;
+    white-space: nowrap;
+  }
+  .snip:hover { background: var(--surface2); color: var(--accent); border-color: var(--accent); }
+  /* KaTeX preview inside snippet button */
+  .snip .katex { font-size: 0.8em !important; pointer-events: none; }
+  .snip .katex-html { pointer-events: none; }
+  .latex-input { flex: 1; background: var(--bg); border: none; outline: none; resize: none; padding: 18px; font-family: 'JetBrains Mono', monospace; font-size: 0.88rem; color: var(--text); line-height: 1.75; }
+  .latex-input::placeholder { color: var(--text-dim); }
 
-.preview {
-  background: white;
-  padding: 60px;
-  border: 1px solid var(--border);
-  min-width: 200px;
-}
+  /* PREVIEW */
+  .preview-panel { display: flex; flex-direction: column; overflow: hidden; }
+  .controls-bar { display: flex; align-items: center; gap: 12px; padding: 7px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; flex-wrap: wrap; }
+  .ctrl { display: flex; align-items: center; gap: 5px; }
+  .ctrl-lbl { font-size: 0.65rem; color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+  .ctrl-val { font-size: 0.65rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; min-width: 30px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 78px; height: 3px; border-radius: 2px; background: var(--border); outline: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  input[type=range]::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); border: none; cursor: pointer; }
 
-/* DIVIDERS */
-.divider {
-  background: var(--border);
-  cursor: col-resize;
-}
+  .swatches { display: flex; gap: 4px; align-items: center; }
+  .sw { width: 14px; height: 14px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.13s; flex-shrink: 0; }
+  .sw.active { border-color: var(--accent); }
+
+  .preview-viewport {
+    flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 20px;
+    background: repeating-conic-gradient(#1a1a20 0% 25%, #141418 0% 50%) 0 0 / 20px 20px;
+  }
+  body.light .preview-viewport {
+    background: repeating-conic-gradient(#e0ddd6 0% 25%, #ccc9c0 0% 50%) 0 0 / 20px 20px;
+  }
+  .preview-viewport::-webkit-scrollbar { width: 5px; height: 5px; }
+  .preview-viewport::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Preview box — this is what the user sees */
+  #preview-box {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+    box-shadow: 0 10px 48px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+    padding: 24px 32px; flex-shrink: 0;
+    transition: width 0.12s, height 0.12s, background 0.2s;
+    overflow: hidden;
+  }
+  .preview-error { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--red); text-align: center; max-width: 340px; line-height: 1.5; }
+
+  /* STATUS */
+  .status-bar { height: 26px; display: flex; align-items: center; gap: 14px; padding: 0 14px; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; }
+  .status-ind { display: flex; align-items: center; gap: 5px; font-size: 0.63rem; color: var(--text-muted); }
+  .s-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); transition: background 0.2s; }
+  .s-dot.err { background: var(--red); }
+  .s-dot.busy { background: var(--accent); animation: blink 0.7s infinite; }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+  /* TOAST */
+  #toast {
+    position: fixed; bottom: 32px; left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    background: var(--surface2); border: 1px solid var(--accent); color: var(--text);
+    padding: 9px 18px; border-radius: 40px; font-size: 0.78rem; font-weight: 500;
+    pointer-events: none; opacity: 0; transition: opacity 0.18s, transform 0.18s;
+    z-index: 999; white-space: nowrap; display: flex; align-items: center; gap: 7px;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /*
+   * EXPORT TARGET — a real DOM element rendered off-screen.
+   * html2canvas captures this, not the preview-box itself.
+   * It has an explicit solid background and no box-shadow,
+   * so the rasterised PNG always comes out clean.
+   */
+  #export-target {
+    position: fixed;
+    left: -99999px;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    /* size and background set dynamically */
+  }
 </style>
 </head>
-
 <body>
 
-<div class="header">
-  LaTeX Equation Studio <br>
-  Powered by ChatGPT
+<header>
+  <div class="brand">∫ LaTeX Studio <em>equation editor</em></div>
+  <div class="header-actions">
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="theme-icon"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <span id="theme-label">Light</span>
+    </button>
+    <button class="btn" onclick="toggleSidebar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+      History
+    </button>
+    <button class="btn" id="btn-copy" onclick="copyPNG()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      Copy PNG
+    </button>
+    <button class="btn" id="btn-save" onclick="savePNG()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Save PNG
+    </button>
+    <button class="btn primary" id="btn-pdf" onclick="savePDF()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Save PDF
+    </button>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      History
+      <button class="icon-btn" onclick="clearHistory()" title="Clear all">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+      </button>
+    </div>
+    <div class="history-list" id="history-list"></div>
+  </aside>
+
+  <div class="main">
+    <div class="split">
+      <div class="editor-panel">
+        <div class="panel-bar"><span class="dot"></span> LaTeX Input</div>
+        <div class="palette">
+          <div class="palette-tabs" id="palette-tabs"></div>
+          <div class="palette-body" id="palette-body"></div>
+        </div>
+        <textarea class="latex-input" id="editor"
+          placeholder="Type LaTeX… e.g. \frac{-b \pm \sqrt{b^2-4ac}}{2a}"
+          spellcheck="false"></textarea>
+      </div>
+      <div class="preview-panel">
+        <div class="panel-bar"><span class="dot purple"></span> Preview</div>
+        <div class="controls-bar">
+          <div class="ctrl">
+            <span class="ctrl-lbl">W</span>
+            <input type="range" id="sl-w" min="200" max="1000" value="560" oninput="onSlider()">
+            <span class="ctrl-val" id="lbl-w">560</span>
+          </div>
+          <div class="ctrl">
+            <span class="ctrl-lbl">H</span>
+            <input type="range" id="sl-h" min="80" max="600" value="180" oninput="onSlider()">
+            <span class="ctrl-val" id="lbl-h">180</span>
+          </div>
+          <div class="ctrl">
+            <span class="ctrl-lbl">Size</span>
+            <input type="range" id="sl-fs" min="14" max="80" value="36" oninput="onSlider()">
+            <span class="ctrl-val" id="lbl-fs">36</span>
+          </div>
+          <div class="ctrl">
+            <span class="ctrl-lbl">Export BG</span>
+            <div class="swatches">
+              <div class="sw active" style="background:#ffffff" data-color="#ffffff" data-eq="#111111" onclick="setBg(this)" title="White"></div>
+              <div class="sw" style="background:#f5f0e8" data-color="#f5f0e8" data-eq="#111111" onclick="setBg(this)" title="Cream"></div>
+              <div class="sw" style="background:transparent;border:1px dashed #888;background-image:linear-gradient(45deg,#ccc 25%,transparent 25%,transparent 75%,#ccc 75%),linear-gradient(45deg,#ccc 25%,transparent 25%,transparent 75%,#ccc 75%);background-size:6px 6px;background-position:0 0,3px 3px;" data-color="transparent" data-eq="#111111" onclick="setBg(this)" title="Transparent"></div>
+              <div class="sw" style="background:#1a1a2e" data-color="#1a1a2e" data-eq="#ffffff" onclick="setBg(this)" title="Dark navy"></div>
+              <div class="sw" style="background:#0d1117" data-color="#0d1117" data-eq="#ffffff" onclick="setBg(this)" title="Black"></div>
+            </div>
+          </div>
+        </div>
+        <div class="preview-viewport">
+          <div id="preview-box"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-ind">
+        <div class="s-dot" id="s-dot"></div>
+        <span id="s-text">Ready</span>
+      </div>
+      <div style="margin-left:auto;font-size:0.62rem;color:var(--text-dim)" id="dim-label"></div>
+    </div>
+  </div>
 </div>
 
-<div class="container" id="container">
+<!-- The off-screen div that html2canvas actually captures.
+     Completely separate from #preview-box so it can have a
+     guaranteed solid background and zero box-shadow. -->
+<div id="export-target"></div>
 
-<div class="history" id="historyPanel">
-<h3>History</h3>
-<div id="historyList"></div>
-</div>
-
-<div class="divider" id="dividerLeft"></div>
-
-<div class="editor">
-<textarea id="latexInput">
-\[
-E = mc^2
-\]
-</textarea>
-</div>
-
-<div class="divider" id="dividerRight"></div>
-
-<div class="viewer">
-
-<div class="toolbar">
-<div class="toolbar-left">
-<button onclick="toggleHistory()">Toggle History</button>
-Font:
-<input type="number" id="fontSize" value="48">
-</div>
-
-<div>
-<button onclick="saveSVG()">SVG</button>
-<button onclick="savePNG()">PNG</button>
-<button onclick="savePDF()">PDF</button>
-</div>
-</div>
-
-<div class="preview-area">
-<div id="preview" class="preview"></div>
-</div>
-
-</div>
-
+<div id="toast">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toast-text"></span>
 </div>
 
 <script>
+'use strict';
 
-/* HISTORY STORAGE */
-let historyStore = JSON.parse(localStorage.getItem("latexHistory") || "[]");
+/* ── State ── */
+let exportBgColor = '#ffffff';
+let exportEqColor = '#111111';
+let appHistory    = [];
+let sidebarOpen   = true;
+let renderTimer   = null;
+let lastLatex     = '\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}';
+let isLight       = false;
 
-function updateHistory() {
-  const list = document.getElementById("historyList");
-  list.innerHTML = "";
-  historyStore.slice(-10).reverse().forEach(eq => {
-    const div = document.createElement("div");
-    div.className = "history-item";
-    div.textContent = eq.substring(0,40);
-    div.onclick = () => {
-      document.getElementById("latexInput").value = eq;
-      render();
+try { appHistory = JSON.parse(localStorage.getItem('lx-history') || '[]'); } catch(e) {}
+
+/* ── Symbol palette data ── */
+// Each entry: [displayLatex, insertText, tooltip]
+// displayLatex is rendered by KaTeX in the button; insertText is what gets inserted.
+const PALETTE = {
+  'Structures': [
+    ['\\frac{a}{b}',           '\\frac{a}{b}',                         'Fraction'],
+    ['\\sqrt{x}',              '\\sqrt{x}',                            'Square root'],
+    ['\\sqrt[n]{x}',           '\\sqrt[n]{x}',                         'nth root'],
+    ['x^{2}',                  '^{2}',                                 'Superscript'],
+    ['x_{n}',                  '_{n}',                                 'Subscript'],
+    ['\\binom{n}{k}',          '\\binom{n}{k}',                        'Binomial'],
+    ['\\left(\\right)',        '\\left( \\right)',                     'Auto parens'],
+    ['\\left[\\right]',        '\\left[ \\right]',                     'Auto brackets'],
+    ['\\left\\{\\right\\}',    '\\left\\{ \\right\\}',                 'Auto braces'],
+    ['\\left|x\\right|',       '\\left| x \\right|',                   'Absolute value'],
+    ['\\left\\|x\\right\\|',   '\\left\\| x \\right\\|',               'Norm'],
+    ['\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}', '\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}', '2×2 matrix'],
+    ['\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}', '\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}', 'Bracket matrix'],
+    ['\\begin{vmatrix}a&b\\\\c&d\\end{vmatrix}', '\\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix}', 'Det matrix'],
+    ['\\begin{cases}x&\\text{if }x>0\\\\0&\\text{else}\\end{cases}', '\\begin{cases} x & \\text{if } x > 0 \\\\ 0 & \\text{otherwise} \\end{cases}', 'Cases'],
+    ['\\text{text}',           '\\text{text}',                         'Text in math'],
+    ['\\boxed{x}',             '\\boxed{x}',                           'Box'],
+    ['\\underbrace{a+b}_{n}',  '\\underbrace{a+b}_{n}',                'Underbrace'],
+    ['\\overbrace{a+b}^{n}',   '\\overbrace{a+b}^{n}',                 'Overbrace'],
+    ['\\overset{?}{=}',        '\\overset{?}{=}',                      'Overset'],
+    ['\\underset{x}{\\lim}',   '\\underset{x}{\\lim}',                 'Underset'],
+  ],
+  'Calculus': [
+    ['\\int_{a}^{b}',          '\\int_{a}^{b} f(x)\\,dx',              'Definite integral'],
+    ['\\iint',                 '\\iint f\\,dA',                        'Double integral'],
+    ['\\iiint',                '\\iiint f\\,dV',                       'Triple integral'],
+    ['\\oint',                 '\\oint f\\,ds',                        'Contour integral'],
+    ['\\sum_{i=1}^{n}',        '\\sum_{i=1}^{n} i',                    'Sum'],
+    ['\\prod_{i=1}^{n}',       '\\prod_{i=1}^{n} i',                   'Product'],
+    ['\\lim_{x\\to\\infty}',   '\\lim_{x\\to\\infty} f(x)',            'Limit'],
+    ['\\lim_{x\\to 0^+}',      '\\lim_{x\\to 0^{+}} f(x)',             'Right limit'],
+    ['\\frac{d}{dx}',          '\\frac{d}{dx}',                        'Derivative'],
+    ['\\frac{d^2}{dx^2}',      '\\frac{d^2}{dx^2}',                    '2nd derivative'],
+    ['\\frac{\\partial}{\\partial x}', '\\frac{\\partial f}{\\partial x}', 'Partial derivative'],
+    ['\\nabla',                '\\nabla',                              'Nabla / gradient'],
+    ['\\nabla^2',              '\\nabla^2 f',                          'Laplacian'],
+    ['\\Delta',                '\\Delta',                              'Delta'],
+    ['f\'(x)',                  "f'(x)",                               "f prime"],
+    ['\\dot{x}',               '\\dot{x}',                             'Time derivative'],
+    ['\\ddot{x}',              '\\ddot{x}',                            '2nd time deriv'],
+    ['\\infty',                '\\infty',                              'Infinity'],
+  ],
+  'Greek': [
+    ['\\alpha',   '\\alpha',   'alpha'],  ['\\beta',    '\\beta',    'beta'],
+    ['\\gamma',   '\\gamma',   'gamma'],  ['\\delta',   '\\delta',   'delta'],
+    ['\\epsilon', '\\epsilon', 'epsilon'],['\\varepsilon','\\varepsilon','varepsilon'],
+    ['\\zeta',    '\\zeta',    'zeta'],   ['\\eta',     '\\eta',     'eta'],
+    ['\\theta',   '\\theta',   'theta'],  ['\\vartheta','\\vartheta','vartheta'],
+    ['\\iota',    '\\iota',    'iota'],   ['\\kappa',   '\\kappa',   'kappa'],
+    ['\\lambda',  '\\lambda',  'lambda'], ['\\mu',      '\\mu',      'mu'],
+    ['\\nu',      '\\nu',      'nu'],     ['\\xi',      '\\xi',      'xi'],
+    ['\\pi',      '\\pi',      'pi'],     ['\\varpi',   '\\varpi',   'varpi'],
+    ['\\rho',     '\\rho',     'rho'],    ['\\varrho',  '\\varrho',  'varrho'],
+    ['\\sigma',   '\\sigma',   'sigma'],  ['\\varsigma','\\varsigma','varsigma'],
+    ['\\tau',     '\\tau',     'tau'],    ['\\upsilon', '\\upsilon', 'upsilon'],
+    ['\\phi',     '\\phi',     'phi'],    ['\\varphi',  '\\varphi',  'varphi'],
+    ['\\chi',     '\\chi',     'chi'],    ['\\psi',     '\\psi',     'psi'],
+    ['\\omega',   '\\omega',   'omega'],
+    ['\\Gamma',   '\\Gamma',   'Gamma'],  ['\\Delta',   '\\Delta',   'Delta'],
+    ['\\Theta',   '\\Theta',   'Theta'],  ['\\Lambda',  '\\Lambda',  'Lambda'],
+    ['\\Xi',      '\\Xi',      'Xi'],     ['\\Pi',      '\\Pi',      'Pi'],
+    ['\\Sigma',   '\\Sigma',   'Sigma'],  ['\\Upsilon', '\\Upsilon', 'Upsilon'],
+    ['\\Phi',     '\\Phi',     'Phi'],    ['\\Psi',     '\\Psi',     'Psi'],
+    ['\\Omega',   '\\Omega',   'Omega'],
+  ],
+  'Operators': [
+    ['\\pm',          '\\pm',           '± plus-minus'],
+    ['\\mp',          '\\mp',           '∓ minus-plus'],
+    ['\\times',       '\\times',        '× times'],
+    ['\\div',         '\\div',          '÷ divide'],
+    ['\\cdot',        '\\cdot',         '· dot product'],
+    ['\\circ',        '\\circ',         '∘ composition'],
+    ['\\bullet',      '\\bullet',       '• bullet'],
+    ['\\oplus',       '\\oplus',        '⊕ direct sum'],
+    ['\\otimes',      '\\otimes',       '⊗ tensor product'],
+    ['\\odot',        '\\odot',         '⊙ dot operator'],
+    ['\\ominus',      '\\ominus',       '⊖'],
+    ['\\oslash',      '\\oslash',       '⊘'],
+    ['\\wedge',       '\\wedge',        '∧ and / wedge'],
+    ['\\vee',         '\\vee',          '∨ or / vee'],
+    ['\\cap',         '\\cap',          '∩ intersection'],
+    ['\\cup',         '\\cup',          '∪ union'],
+    ['\\star',        '\\star',         '⋆ star'],
+    ['\\ast',         '\\ast',          '∗ asterisk'],
+    ['\\dagger',      '\\dagger',       '† dagger'],
+    ['\\ddagger',     '\\ddagger',      '‡ double dagger'],
+    ['\\amalg',       '\\amalg',        '⨿ amalg'],
+  ],
+  'Relations': [
+    ['\\leq',         '\\leq',          '≤ less or equal'],
+    ['\\geq',         '\\geq',          '≥ greater or equal'],
+    ['\\neq',         '\\neq',          '≠ not equal'],
+    ['\\approx',      '\\approx',       '≈ approx'],
+    ['\\sim',         '\\sim',          '∼ similar'],
+    ['\\simeq',       '\\simeq',        '≃ simeq'],
+    ['\\cong',        '\\cong',         '≅ congruent'],
+    ['\\equiv',       '\\equiv',        '≡ equivalent'],
+    ['\\propto',      '\\propto',       '∝ proportional'],
+    ['\\ll',          '\\ll',           '≪ much less'],
+    ['\\gg',          '\\gg',           '≫ much greater'],
+    ['\\subset',      '\\subset',       '⊂ subset'],
+    ['\\supset',      '\\supset',       '⊃ superset'],
+    ['\\subseteq',    '\\subseteq',     '⊆ subset or equal'],
+    ['\\supseteq',    '\\supseteq',     '⊇ superset or equal'],
+    ['\\in',          '\\in',           '∈ element of'],
+    ['\\notin',       '\\notin',        '∉ not element'],
+    ['\\ni',          '\\ni',           '∋ contains'],
+    ['\\perp',        '\\perp',         '⊥ perpendicular'],
+    ['\\parallel',    '\\parallel',     '∥ parallel'],
+    ['\\mid',         '\\mid',          '∣ divides'],
+    ['\\nmid',        '\\nmid',         '∤ does not divide'],
+    ['\\vdash',       '\\vdash',        '⊢ proves'],
+    ['\\models',      '\\models',       '⊨ models'],
+  ],
+  'Arrows': [
+    ['\\to',               '\\to',               '→'],
+    ['\\leftarrow',        '\\leftarrow',         '←'],
+    ['\\leftrightarrow',   '\\leftrightarrow',    '↔'],
+    ['\\Rightarrow',       '\\Rightarrow',        '⇒'],
+    ['\\Leftarrow',        '\\Leftarrow',         '⇐'],
+    ['\\Leftrightarrow',   '\\Leftrightarrow',    '⇔'],
+    ['\\iff',              '\\iff',               'iff (⟺)'],
+    ['\\implies',          '\\implies',           'implies (⟹)'],
+    ['\\uparrow',          '\\uparrow',           '↑'],
+    ['\\downarrow',        '\\downarrow',         '↓'],
+    ['\\updownarrow',      '\\updownarrow',       '↕'],
+    ['\\nearrow',          '\\nearrow',           '↗'],
+    ['\\searrow',          '\\searrow',           '↘'],
+    ['\\swarrow',          '\\swarrow',           '↙'],
+    ['\\nwarrow',          '\\nwarrow',           '↖'],
+    ['\\mapsto',           '\\mapsto',            '↦ maps to'],
+    ['\\hookrightarrow',   '\\hookrightarrow',    '↪ hook right'],
+    ['\\hookleftarrow',    '\\hookleftarrow',     '↩ hook left'],
+    ['\\rightharpoonup',   '\\rightharpoonup',    '⇀'],
+    ['\\rightharpoondown', '\\rightharpoondown',  '⇁'],
+    ['\\rightleftharpoons','\\rightleftharpoons', '⇌ equilibrium'],
+    ['\\xrightarrow{f}',   '\\xrightarrow{f}',   'labelled arrow'],
+  ],
+  'Sets & Logic': [
+    ['\\emptyset',    '\\emptyset',     '∅ empty set'],
+    ['\\varnothing',  '\\varnothing',   '∅ varnothing'],
+    ['\\mathbb{R}',   '\\mathbb{R}',    'ℝ reals'],
+    ['\\mathbb{N}',   '\\mathbb{N}',    'ℕ naturals'],
+    ['\\mathbb{Z}',   '\\mathbb{Z}',    'ℤ integers'],
+    ['\\mathbb{Q}',   '\\mathbb{Q}',    'ℚ rationals'],
+    ['\\mathbb{C}',   '\\mathbb{C}',    'ℂ complex'],
+    ['\\mathbb{P}',   '\\mathbb{P}',    'ℙ primes'],
+    ['\\forall',      '\\forall',       '∀ for all'],
+    ['\\exists',      '\\exists',       '∃ there exists'],
+    ['\\nexists',     '\\nexists',      '∄ not exists'],
+    ['\\neg',         '\\neg',          '¬ not'],
+    ['\\land',        '\\land',         '∧ and'],
+    ['\\lor',         '\\lor',          '∨ or'],
+    ['\\top',         '\\top',          '⊤ true / top'],
+    ['\\bot',         '\\bot',          '⊥ false / bottom'],
+    ['\\setminus',    '\\setminus',     '∖ set minus'],
+    ['\\triangle',    '\\triangle',     '△'],
+    ['\\square',      '\\square',       '□'],
+    ['\\therefore',   '\\therefore',    '∴ therefore'],
+    ['\\because',     '\\because',      '∵ because'],
+  ],
+  'Accents': [
+    ['\\hat{x}',      '\\hat{x}',       'hat'],
+    ['\\bar{x}',      '\\bar{x}',       'bar'],
+    ['\\vec{x}',      '\\vec{x}',       'vector arrow'],
+    ['\\tilde{x}',    '\\tilde{x}',     'tilde'],
+    ['\\dot{x}',      '\\dot{x}',       'dot'],
+    ['\\ddot{x}',     '\\ddot{x}',      'double dot'],
+    ['\\acute{x}',    '\\acute{x}',     'acute'],
+    ['\\grave{x}',    '\\grave{x}',     'grave'],
+    ['\\breve{x}',    '\\breve{x}',     'breve'],
+    ['\\check{x}',    '\\check{x}',     'check'],
+    ['\\widehat{AB}', '\\widehat{AB}',  'wide hat'],
+    ['\\widetilde{AB}','\\widetilde{AB}','wide tilde'],
+    ['\\overline{AB}','\\overline{AB}', 'overline'],
+    ['\\underline{x}','\\underline{x}', 'underline'],
+    ['\\overrightarrow{AB}','\\overrightarrow{AB}','vector over'],
+    ['\\mathbf{x}',   '\\mathbf{x}',    'bold'],
+    ['\\mathit{x}',   '\\mathit{x}',    'italic'],
+    ['\\mathrm{x}',   '\\mathrm{x}',    'roman'],
+    ['\\mathcal{L}',  '\\mathcal{L}',   'calligraphic'],
+    ['\\mathfrak{g}', '\\mathfrak{g}',  'fraktur'],
+  ],
+};
+
+let activeTab = Object.keys(PALETTE)[0];
+
+function initPalette() {
+  const tabsEl = document.getElementById('palette-tabs');
+  const bodyEl = document.getElementById('palette-body');
+
+  // Build tabs
+  Object.keys(PALETTE).forEach(cat => {
+    const t = document.createElement('button');
+    t.className = 'ptab' + (cat === activeTab ? ' active' : '');
+    t.textContent = cat;
+    t.onclick = () => {
+      activeTab = cat;
+      document.querySelectorAll('.ptab').forEach(b => b.classList.remove('active'));
+      t.classList.add('active');
+      renderPaletteBody();
     };
-    list.appendChild(div);
+    tabsEl.appendChild(t);
+  });
+
+  renderPaletteBody();
+}
+
+function renderPaletteBody() {
+  const bodyEl = document.getElementById('palette-body');
+  bodyEl.innerHTML = '';
+  const items = PALETTE[activeTab] || [];
+  items.forEach(([display, insert, tip]) => {
+    const btn = document.createElement('button');
+    btn.className = 'snip';
+    btn.title = tip || insert;
+    // Render the symbol via KaTeX inside the button
+    try {
+      const rendered = katex.renderToString(display, { throwOnError: false, output: 'html', displayMode: false });
+      btn.innerHTML = rendered;
+    } catch(e) {
+      btn.textContent = display;
+    }
+    btn.onclick = () => insertAtCursor(insert);
+    bodyEl.appendChild(btn);
   });
 }
 
-/* RENDER */
-async function render() {
-  const latex = document.getElementById("latexInput").value;
-  const fontSize = document.getElementById("fontSize").value;
-  const preview = document.getElementById("preview");
-
-  preview.style.fontSize = fontSize + "px";
-  preview.innerHTML = latex;
-  await MathJax.typesetPromise();
-
-  if (!historyStore.includes(latex)) {
-    historyStore.push(latex);
-    localStorage.setItem("latexHistory", JSON.stringify(historyStore));
-    updateHistory();
-  }
+function insertAtCursor(text) {
+  const ed = document.getElementById('editor');
+  const s = ed.selectionStart, e = ed.selectionEnd;
+  ed.value = ed.value.slice(0, s) + text + ed.value.slice(e);
+  ed.selectionStart = ed.selectionEnd = s + text.length;
+  ed.focus(); render();
 }
 
-/* LIVE RENDER */
-let timer;
-document.getElementById("latexInput").addEventListener("input", () => {
-  clearTimeout(timer);
-  timer = setTimeout(render, 400);
-});
-document.getElementById("fontSize").addEventListener("input", render);
-
-/* RESIZE LEFT (History) */
-const container = document.getElementById("container");
-const dividerLeft = document.getElementById("dividerLeft");
-
-dividerLeft.addEventListener("mousedown", () => {
-  document.onmousemove = function(e) {
-    container.style.gridTemplateColumns =
-      e.clientX + "px 5px 40% 5px 1fr";
-  };
-  document.onmouseup = () => document.onmousemove = null;
-});
-
-/* RESIZE RIGHT (Editor) */
-const dividerRight = document.getElementById("dividerRight");
-
-dividerRight.addEventListener("mousedown", () => {
-  document.onmousemove = function(e) {
-    const totalWidth = window.innerWidth;
-    const historyWidth = container.children[0].offsetWidth;
-    const newEditorWidth = e.clientX - historyWidth - 5;
-    container.style.gridTemplateColumns =
-      historyWidth + "px 5px " +
-      newEditorWidth + "px 5px 1fr";
-  };
-  document.onmouseup = () => document.onmousemove = null;
-});
-
-/* TOGGLE HISTORY */
-function toggleHistory() {
-  const history = document.getElementById("historyPanel");
-  if (history.offsetWidth === 0) {
-    container.style.gridTemplateColumns = "250px 5px 40% 5px 1fr";
+/* ── Theme ── */
+function toggleTheme() {
+  isLight = !isLight;
+  document.body.classList.toggle('light', isLight);
+  document.getElementById('theme-label').textContent = isLight ? 'Dark' : 'Light';
+  const icon = document.getElementById('theme-icon');
+  if (isLight) {
+    icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
   } else {
-    container.style.gridTemplateColumns = "0px 5px 40% 5px 1fr";
+    icon.innerHTML = '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>';
   }
 }
 
-/* EXPORT */
-function getSVG() {
-  return document.querySelector("#preview svg");
+/* ── Dimensions & sliders ── */
+const getW  = () => +document.getElementById('sl-w').value;
+const getH  = () => +document.getElementById('sl-h').value;
+const getFS = () => +document.getElementById('sl-fs').value;
+
+function onSlider() {
+  document.getElementById('lbl-w').textContent  = getW();
+  document.getElementById('lbl-h').textContent  = getH();
+  document.getElementById('lbl-fs').textContent = getFS();
+  applyBoxSize();
+  render();
+}
+function applyBoxSize() {
+  const box = document.getElementById('preview-box');
+  box.style.width    = box.style.minWidth  = getW() + 'px';
+  box.style.height   = box.style.minHeight = getH() + 'px';
+  document.getElementById('dim-label').textContent = `Export: ${getW()} × ${getH()} px`;
 }
 
-function saveSVG() {
-  const svg = getSVG();
-  const source = new XMLSerializer().serializeToString(svg);
-  const blob = new Blob([source], {type:"image/svg+xml"});
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "equation.svg";
-  link.click();
+/* ── Export BG swatches ── */
+function setBg(el) {
+  document.querySelectorAll('.sw').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  exportBgColor = el.dataset.color;   // what the exported PNG background will be
+  exportEqColor = el.dataset.eq;      // equation color for that background
+  // Update the preview box background to match
+  const box = document.getElementById('preview-box');
+  if (exportBgColor === 'transparent') {
+    box.style.background = 'transparent';
+  } else {
+    box.style.background = exportBgColor;
+  }
+  render();
 }
 
-function savePNG() {
-  const svg = getSVG();
-  const source = new XMLSerializer().serializeToString(svg);
-  const img = new Image();
-  const blob = new Blob([source], {type:"image/svg+xml"});
-  const url = URL.createObjectURL(blob);
+/* ── Live preview (KaTeX HTML — synchronous, instant) ── */
+function render() {
+  const latex = document.getElementById('editor').value.trim();
+  const box   = document.getElementById('preview-box');
+  if (!latex) {
+    box.innerHTML = '<span style="font-size:0.8rem;color:#888;font-family:DM Sans,sans-serif;">Start typing on the left…</span>';
+    setStatus('ok', 'Empty'); return;
+  }
+  try {
+    const html = katex.renderToString(latex, { displayMode: true, throwOnError: true, output: 'html' });
+    // Use explicit color so KaTeX glyphs are always visible regardless of theme
+    box.innerHTML = `<span style="font-size:${getFS()}px;color:${exportEqColor};display:block;">${html}</span>`;
+    lastLatex = latex;
+    setStatus('ok', 'Rendered ✓');
+    pushHistory(latex);
+  } catch(err) {
+    box.innerHTML = `<div class="preview-error">⚠ ${escHtml(err.message)}</div>`;
+    setStatus('err', 'Parse error');
+  }
+}
+function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(render, 120); }
 
-  img.onload = function() {
-    const canvas = document.createElement("canvas");
-    canvas.width = img.width * 3;
-    canvas.height = img.height * 3;
-    const ctx = canvas.getContext("2d");
-    ctx.scale(3,3);
-    ctx.drawImage(img,0,0);
-    const link = document.createElement("a");
-    link.href = canvas.toDataURL();
-    link.download = "equation.png";
-    link.click();
-  };
-  img.src = url;
+/* ══════════════════════════════════════════════════════════
+   EXPORT — html2canvas on a dedicated off-screen element.
+
+   WHY THIS WORKS:
+   The key bug was that html2canvas was capturing #preview-box
+   which sits inside the dark app shell. Even with backgroundColor
+   set, html2canvas would composite the dark parent backgrounds
+   through any transparency in the KaTeX SVG glyphs, producing
+   black or muddy output.
+
+   THE FIX:
+   We build a completely isolated <div id="export-target"> that
+   lives at position fixed far off-screen. It has:
+     • An explicit solid background-color (no inheritance)
+     • The KaTeX HTML re-rendered fresh with explicit eq color
+     • No parent elements with dark backgrounds
+     • Exact pixel dimensions matching the sliders
+   html2canvas captures only that div, so what you get is
+   exactly what you see in the preview — clean, correct colors.
+══════════════════════════════════════════════════════════ */
+async function captureCanvas() {
+  const W   = getW();
+  const H   = getH();
+  const FS  = getFS();
+  const bg  = exportBgColor === 'transparent' ? '#ffffff' : exportBgColor;
+  const eq  = exportEqColor;
+  const lat = lastLatex;
+
+  if (!lat) throw new Error('Nothing to export — type an equation first.');
+
+  // Render KaTeX HTML fresh (same call as preview, same output)
+  const html = katex.renderToString(lat, { displayMode: true, throwOnError: true, output: 'html' });
+
+  // Build the off-screen export target
+  const target = document.getElementById('export-target');
+  target.style.width      = W + 'px';
+  target.style.height     = H + 'px';
+  target.style.background = bg;
+  target.style.padding    = '24px 32px';
+
+  // Inject equation with explicit color — no CSS inheritance risks
+  target.innerHTML = `<span style="
+    font-size: ${FS}px;
+    color: ${eq};
+    display: block;
+    line-height: 1;
+  ">${html}</span>`;
+
+  // Give browser one frame to lay out the new content
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  // Capture with html2canvas
+  // allowTaint + useCORS handles the KaTeX CDN font files
+  const canvas = await html2canvas(target, {
+    width:           W,
+    height:          H,
+    scale:           Math.max(window.devicePixelRatio || 1, 2),
+    backgroundColor: bg,
+    useCORS:         true,
+    allowTaint:      true,
+    logging:         false,
+    // Ignore the fixed positioning so it captures correctly
+    x:               0,
+    y:               0,
+  });
+
+  return canvas;
 }
 
-function savePDF() {
-  const { jsPDF } = window.jspdf;
-  const svg = getSVG();
-  const source = new XMLSerializer().serializeToString(svg);
-  const img = new Image();
-  const blob = new Blob([source], {type:"image/svg+xml"});
-  const url = URL.createObjectURL(blob);
-
-  img.onload = function() {
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "px",
-      format: [img.width, img.height]
-    });
-    pdf.addImage(img,"PNG",0,0,img.width,img.height);
-    pdf.save("equation.pdf");
-  };
-  img.src = url;
+/* ── Export actions ── */
+function setBusy(busy) {
+  ['btn-copy','btn-save','btn-pdf'].forEach(id => {
+    document.getElementById(id).disabled = busy;
+  });
 }
 
-updateHistory();
-render();
+async function copyPNG() {
+  try {
+    setBusy(true); setStatus('busy', 'Capturing…');
+    const canvas = await captureCanvas();
+    canvas.toBlob(async blob => {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        showToast('✓ Copied to clipboard!');
+        setStatus('ok', 'Copied');
+      } catch(e) {
+        // Clipboard API blocked on non-HTTPS — fall back to download
+        dlBlob(blob, 'equation.png');
+        showToast('Clipboard blocked — downloaded instead');
+        setStatus('ok', 'Downloaded');
+      }
+      setBusy(false);
+    }, 'image/png');
+  } catch(e) {
+    showToast('⚠ ' + e.message);
+    setStatus('err', 'Export error');
+    setBusy(false);
+    console.error(e);
+  }
+}
+
+async function savePNG() {
+  try {
+    setBusy(true); setStatus('busy', 'Capturing…');
+    const canvas = await captureCanvas();
+    canvas.toBlob(blob => {
+      dlBlob(blob, 'equation.png');
+      showToast('PNG saved!');
+      setStatus('ok', 'Saved');
+      setBusy(false);
+    }, 'image/png');
+  } catch(e) {
+    showToast('⚠ ' + e.message);
+    setStatus('err', 'Export error');
+    setBusy(false);
+    console.error(e);
+  }
+}
+
+async function savePDF() {
+  try {
+    setBusy(true); setStatus('busy', 'Creating PDF…');
+    if (!window.jspdf) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    const canvas  = await captureCanvas();
+    const imgData = canvas.toDataURL('image/png');
+    const W = getW(), H = getH();
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: W >= H ? 'landscape' : 'portrait', unit: 'pt', format: [W * 0.75, H * 0.75] });
+    pdf.addImage(imgData, 'PNG', 0, 0, W * 0.75, H * 0.75);
+    pdf.save('equation.pdf');
+    showToast('PDF saved!'); setStatus('ok', 'Saved'); setBusy(false);
+  } catch(e) {
+    showToast('⚠ ' + e.message); setStatus('err', 'Error'); setBusy(false); console.error(e);
+  }
+}
+
+function dlBlob(blob, name) {
+  const a = document.createElement('a');
+  a.download = name; a.href = URL.createObjectURL(blob); a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+}
+
+/* ── History ── */
+function pushHistory(latex) {
+  const idx = appHistory.findIndex(h => h.l === latex);
+  if (idx !== -1) appHistory.splice(idx, 1);
+  appHistory.unshift({ l: latex, t: Date.now() });
+  if (appHistory.length > 60) appHistory.length = 60;
+  try { localStorage.setItem('lx-history', JSON.stringify(appHistory)); } catch(e) {}
+  renderHistory();
+}
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  if (!appHistory.length) { el.innerHTML = '<div class="h-empty">No history yet.</div>'; return; }
+  el.innerHTML = appHistory.map((h, i) =>
+    `<div class="h-item" onclick="loadHistory(${i})">
+      <div class="h-latex">${escHtml(h.l)}</div>
+      <div class="h-time">${timeAgo(h.t)}</div>
+    </div>`).join('');
+}
+function loadHistory(i) { document.getElementById('editor').value = appHistory[i].l; render(); }
+function clearHistory() {
+  appHistory = [];
+  try { localStorage.removeItem('lx-history'); } catch(e) {}
+  renderHistory();
+}
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen);
+}
+
+/* ── Utils ── */
+function setStatus(state, msg) {
+  document.getElementById('s-dot').className = 's-dot' + (state === 'err' ? ' err' : state === 'busy' ? ' busy' : '');
+  document.getElementById('s-text').textContent = msg;
+}
+let toastTmr;
+function showToast(msg) {
+  document.getElementById('toast-text').textContent = msg;
+  const t = document.getElementById('toast'); t.classList.add('show');
+  clearTimeout(toastTmr); toastTmr = setTimeout(() => t.classList.remove('show'), 2800);
+}
+const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function timeAgo(ts) {
+  const d = (Date.now() - ts) / 1000;
+  if (d < 60) return 'just now';
+  if (d < 3600) return Math.floor(d / 60) + 'm ago';
+  if (d < 86400) return Math.floor(d / 3600) + 'h ago';
+  return Math.floor(d / 86400) + 'd ago';
+}
+
+/* ── Boot ── */
+(function init() {
+  initPalette();
+  renderHistory();
+  applyBoxSize();
+  document.getElementById('preview-box').style.background = exportBgColor;
+  document.getElementById('editor').value = lastLatex;
+  document.getElementById('editor').addEventListener('input', scheduleRender);
+  render();
+})();
 </script>
-
 </body>
 </html>
