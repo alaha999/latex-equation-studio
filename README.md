@@ -1,2 +1,4 @@
 # latex-equation-studio
-Write latex equations and export them for presentation purposes
+Write LaTeX equations and export them for presentation purposes
+
+Website URL: https://alaha999.github.io/latex-equation-studio/
